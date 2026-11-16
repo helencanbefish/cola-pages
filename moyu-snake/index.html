@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>摸鱼一条蛇</title>
+<style>
+  :root{
+    --mint:#5fe3a1; --ink:#e8f0f7; --dim:#8ba0b3; --line:rgba(255,255,255,.08);
+    --panel:#16222e;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; overflow:hidden;
+    background:radial-gradient(1200px 700px at 50% -10%, #1b2a38 0%, #0b1218 70%);
+    color:var(--ink);
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    -webkit-user-select:none; user-select:none;
+  }
+  .wrap{width:min(94vw, 540px); padding:14px 0 16px}
+  .hud{display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-bottom:10px}
+  .brand{font-size:16px; font-weight:600; letter-spacing:.4px}
+  .brand span{color:var(--mint)}
+  .stats{display:flex; gap:16px; font-size:12px; color:var(--dim)}
+  .stats b{display:block; color:var(--ink); font-size:16px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.2}
+  .stage{position:relative; border-radius:16px; overflow:hidden; background:#0d1a22;
+    box-shadow:0 18px 50px rgba(0,0,0,.45), inset 0 0 0 1px var(--line)}
+  canvas{display:block; width:100%; height:auto; touch-action:none; cursor:pointer}
+  .overlay{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; text-align:center; padding:24px; background:rgba(7,14,20,.94)}
+  .overlay.hide{display:none}
+  .overlay h2{margin:0; font-size:21px; font-weight:600}
+  .overlay p{margin:0; font-size:13px; color:var(--dim); line-height:1.75}
+  .overlay p b{color:var(--ink)}
+  .btn{margin-top:6px; padding:10px 24px; border:0; border-radius:999px; cursor:pointer;
+    background:var(--mint); color:#07231a; font-size:14px; font-weight:600; font-family:inherit}
+  .btn.hide{display:none}
+  .btn:active{transform:translateY(1px)}
+  .pad{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px}
+  .pad button{width:50px; height:40px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink); font-size:16px; cursor:pointer; font-family:inherit}
+  .pad button:active{background:#20313f}
+  .tip{margin-top:10px; text-align:center; font-size:12px; color:var(--dim); line-height:1.8}
+  kbd{background:#1d2c3a; border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:11px}
+
+  /* —— 老板键：假装在工作 —— */
+  #boss{position:fixed; inset:0; z-index:99; display:none; overflow:auto;
+    background:#f3f3f3; color:#1f1f1f;
+    font-family:Calibri,"Segoe UI","Microsoft YaHei",sans-serif; font-size:12px}
+  #boss.show{display:block}
+  .kb-top{display:flex; align-items:center; gap:10px; padding:6px 12px; background:#217346; color:#fff}
+  .kb-tabs{display:flex; gap:2px; padding:0 8px; background:#217346; color:#dff3e6}
+  .kb-tabs span{padding:5px 14px; border-radius:3px 3px 0 0}
+  .kb-tabs span.on{background:#f3f3f3; color:#17462c; font-weight:600}
+  .kb-bar{display:flex; align-items:center; gap:8px; padding:5px 10px; background:#fff; border-bottom:1px solid #d8d8d8; color:#444}
+  .kb-bar .ref{width:52px; flex:none; text-align:center; border:1px solid #d0d0d0; background:#fafafa; padding:2px 0}
+  .kb-bar .fx{flex:1; border:1px solid #d0d0d0; background:#fff; padding:2px 8px; color:#333; white-space:nowrap; overflow:hidden}
+  table.kb{border-collapse:collapse; width:100%; background:#fff; table-layout:fixed}
+  table.kb th,table.kb td{border:1px solid #dcdcdc; height:23px; padding:2px 6px; overflow:hidden; white-space:nowrap}
+  table.kb th{background:#e8e8e8; color:#3a3a3a; font-weight:600; text-align:center}
+  table.kb td.num{text-align:right; font-variant-numeric:tabular-nums}
+  table.kb tr.total td,table.kb tr.total th{background:#f7f7f7; font-weight:600}
+  .kb-status{display:flex; gap:18px; padding:4px 12px; background:#f3f3f3; border-top:1px solid #d8d8d8; color:#555; font-size:11px}
+  .kb-sheets{display:flex; align-items:center; gap:0; padding:8px 8px 0; background:#f3f3f3; border-top:1px solid #d8d8d8; color:#555; font-size:11px}
+  .kb-sheets span{padding:3px 12px; border:1px solid transparent; border-bottom:0; border-radius:3px 3px 0 0}
+  .kb-sheets span.on{background:#fff; border-color:#d0d0d0; color:#217346; font-weight:600}
+  .kb-sheets .esc{margin-left:auto; border:0; color:#c2c2c2}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="hud">
+    <div class="brand">🐍 摸鱼一条<span>蛇</span></div>
+    <div class="stats">
+      <div>得分<b id="score">0</b></div>
+      <div>最高<b id="best">0</b></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game" width="600" height="600"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle">准备开摸</h2>
+      <p id="ovText">吃咖啡 ☕ 得 1 分，吃甜甜圈 🍩 得 3 分。<br>方向键 / WASD 移动，空格暂停</p>
+      <button class="btn" id="ovBtn">开始</button>
+    </div>
+  </div>
+
+  <div class="pad">
+    <button data-dir="left" aria-label="向左">←</button>
+    <button data-dir="up" aria-label="向上">↑</button>
+    <button data-dir="down" aria-label="向下">↓</button>
+    <button data-dir="right" aria-label="向右">→</button>
+  </div>
+
+  <div class="tip"><kbd>Esc</kbd> 一键切到工作表并自动暂停，再按 <kbd>Esc</kbd> 回来</div>
+</div>
+
+<div id="boss">
+  <div class="kb-top">
+    <span>📄 Q3预算执行跟踪_2026.xlsx</span>
+    <span style="opacity:.7">— 已保存</span>
+  </div>
+  <div class="kb-tabs">
+    <span class="on">开始</span><span>插入</span><span>页面布局</span><span>公式</span><span>数据</span><span>审阅</span><span>视图</span>
+  </div>
+  <div class="kb-bar">
+    <div class="ref">C14</div>
+    <div class="fx">fx&nbsp;&nbsp;=SUM(C2:C13)</div>
+  </div>
+  <table class="kb" id="kbTable"></table>
+  <div class="kb-sheets"><span class="on">Sheet1</span><span>Sheet2</span><span>预算明细</span><span class="esc">Esc</span></div>
+  <div class="kb-status">
+    <span>就绪</span><span>平均值: 8,642</span><span>计数: 12</span><span>求和: 103,704</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============ 老板键里的假工作表 ============ */
+  (function buildSheet() {
+    var table = document.getElementById('kbTable');
+    var cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    var head = ['部门', '负责人', '预算(万元)', '已用(万元)', '执行率', '状态', '备注'];
+    var data = [
+      ['市场部', '陈思远', 180.0, 156.4],
+      ['销售一部', '李婧', 240.0, 231.8],
+      ['销售二部', '王皓', 210.0, 148.2],
+      ['产品部', '周逸', 96.5, 71.3],
+      ['研发中心', '赵敏', 320.0, 268.9],
+      ['客户成功', '孙嘉', 88.0, 82.5],
+      ['供应链', '吴桐', 132.4, 119.7],
+      ['人力资源', '郑晓', 54.0, 47.2],
+      ['财务部', '冯磊', 36.0, 33.1],
+      ['法务合规', '许一鸣', 22.0, 18.4],
+      ['行政', '何珊', 41.6, 39.9],
+      ['数据平台', '林楚', 78.3, 63.6]
+    ];
+
+    var html = '<thead><tr><th style="width:38px"></th>';
+    for (var c = 0; c < cols.length; c++) { html += '<th>' + cols[c] + '</th>'; }
+    html += '</tr><tr><th>1</th>';
+    for (var h = 0; h < head.length; h++) { html += '<th>' + head[h] + '</th>'; }
+    html += '</tr></thead><tbody>';
+
+    var sumBudget = 0, sumUsed = 0;
+    for (var r = 0; r < data.length; r++) {
+      var row = data[r];
+      var rate = row[3] / row[2] * 100;
+      sumBudget += row[2];
+      sumUsed += row[3];
+      var tag = rate > 95 ? '偏紧' : (rate < 70 ? '偏慢' : '正常');
+      html += '<tr><th>' + (r + 2) + '</th>'
+            + '<td>' + row[0] + '</td>'
+            + '<td>' + row[1] + '</td>'
+            + '<td class="num">' + row[2].toFixed(1) + '</td>'
+            + '<td class="num">' + row[3].toFixed(1) + '</td>'
+            + '<td class="num">' + rate.toFixed(1) + '%</td>'
+            + '<td>' + tag + '</td>'
+            + '<td>' + (r % 3 === 0 ? '按计划' : '—') + '</td></tr>';
+    }
+    html += '<tr class="total"><th>' + (data.length + 2) + '</th><td>合计</td><td>—</td>'
+          + '<td class="num">' + sumBudget.toFixed(1) + '</td>'
+          + '<td class="num">' + sumUsed.toFixed(1) + '</td>'
+          + '<td class="num">' + (sumUsed / sumBudget * 100).toFixed(1) + '%</td>'
+          + '<td>—</td><td>—</td></tr>';
+    for (var e = 0; e < 6; e++) {
+      html += '<tr><th>' + (data.length + 3 + e) + '</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    }
+    html += '</tbody>';
+    table.innerHTML = html;
+  })();
+
+  /* ============ 游戏本体 ============ */
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var COLS = 20, ROWS = 20, CELL = canvas.width / COLS;
+
+  var scoreEl = document.getElementById('score');
+  var bestEl = document.getElementById('best');
+  var overlay = document.getElementById('overlay');
+  var ovTitle = document.getElementById('ovTitle');
+  var ovText = document.getElementById('ovText');
+  var ovBtn = document.getElementById('ovBtn');
+  var bossEl = document.getElementById('boss');
+
+  var BEST_KEY = 'moyu-snake-best-v1';
+  var best = 0;
+  try { best = parseInt(window.localStorage.getItem(BEST_KEY) || '0', 10) || 0; } catch (err) { best = 0; }
+  bestEl.textContent = best;
+
+  var state = 'ready';       // ready | running | paused | over | boss
+  var prevState = 'ready';
+  var snake, dir, queue, food, score;
+  var acc = 0, lastT = 0, stepMs = 140;
+
+  function reset() {
+    snake = [{ x: 9, y: 10 }, { x: 8, y: 10 }, { x: 7, y: 10 }];
+    dir = { x: 1, y: 0 };
+    queue = [];
+    score = 0;
+    stepMs = 140;
+    acc = 0;
+    scoreEl.textContent = '0';
+    placeFood();
+  }
+
+  function placeFood() {
+    var x = 0, y = 0, guard = 0, free = false;
+    while (guard++ < 800) {
+      x = Math.floor(Math.random() * COLS);
+      y = Math.floor(Math.random() * ROWS);
+      free = true;
+      for (var i = 0; i < snake.length; i++) {
+        if (snake[i].x === x && snake[i].y === y) { free = false; break; }
+      }
+      if (free) { break; }
+    }
+    food = { x: x, y: y, donut: Math.random() < 0.18 };
+  }
+
+  function showOverlay(title, text, btnLabel) {
+    ovTitle.innerHTML = title;
+    ovText.innerHTML = text;
+    if (btnLabel) {
+      ovBtn.textContent = btnLabel;
+      ovBtn.classList.remove('hide');
+    } else {
+      ovBtn.classList.add('hide');
+    }
+    overlay.classList.remove('hide');
+  }
+
+  function hideOverlay() { overlay.classList.add('hide'); }
+
+  function start() {
+    reset();
+    state = 'running';
+    hideOverlay();
+    lastT = 0;
+    draw();
+  }
+
+  function pause() {
+    if (state !== 'running') { return; }
+    state = 'paused';
+    showOverlay('已暂停', '摸鱼也要有节奏，随时回来。<br>空格 / 点一下画面继续', '继续');
+  }
+
+  function resume() {
+    if (state !== 'paused') { return; }
+    state = 'running';
+    hideOverlay();
+    lastT = 0;
+  }
+
+  function gameOver() {
+    state = 'over';
+    showOverlay('撞上了 😵', '本局得分 <b>' + score + '</b>　最高 <b>' + best + '</b><br>Enter / R 再来一局', '再来一局');
+  }
+
+  function pushDir(nd) {
+    var ref = queue.length ? queue[queue.length - 1] : dir;
+    if (nd.x === -ref.x && nd.y === -ref.y) { return; }
+    if (nd.x === ref.x && nd.y === ref.y) { return; }
+    if (queue.length >= 2) { return; }
+    queue.push(nd);
+  }
+
+  function step() {
+    if (queue.length) {
+      var nd = queue.shift();
+      if (!(nd.x === -dir.x && nd.y === -dir.y)) { dir = nd; }
+    }
+
+    var head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS) { gameOver(); return; }
+
+    var grow = (head.x === food.x && head.y === food.y);
+    var limit = grow ? snake.length : snake.length - 1;
+    for (var i = 0; i < limit; i++) {
+      if (snake[i].x === head.x && snake[i].y === head.y) { gameOver(); return; }
+    }
+
+    snake.unshift(head);
+    if (grow) {
+      score += food.donut ? 3 : 1;
+      scoreEl.textContent = score;
+      if (score > best) {
+        best = score;
+        bestEl.textContent = best;
+        try { window.localStorage.setItem(BEST_KEY, String(best)); } catch (err) {}
+      }
+      stepMs = Math.max(78, 140 - Math.floor(score / 5) * 7);
+      placeFood();
+    } else {
+      snake.pop();
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    var rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawEyes(s) {
+    var cx = s.x * CELL + CELL / 2;
+    var cy = s.y * CELL + CELL / 2;
+    var fx = dir.x * CELL * 0.16;
+    var fy = dir.y * CELL * 0.16;
+    var px = -dir.y, py = dir.x;
+    ctx.fillStyle = '#0a1a20';
+    for (var i = -1; i <= 1; i += 2) {
+      var ex = cx + fx + px * CELL * 0.2 * i;
+      var ey = cy + fy + py * CELL * 0.2 * i;
+      ctx.beginPath();
+      ctx.arc(ex, ey, CELL * 0.105, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function draw() {
+    var W = canvas.width, H = canvas.height;
+
+    var bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#0d1b24');
+    bg.addColorStop(1, '#112230');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+    ctx.lineWidth = 1;
+    for (var i = 1; i < COLS; i++) {
+      ctx.beginPath(); ctx.moveTo(i * CELL + 0.5, 0); ctx.lineTo(i * CELL + 0.5, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL + 0.5); ctx.lineTo(W, i * CELL + 0.5); ctx.stroke();
+    }
+
+    if (!food) { return; }
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = Math.round(CELL * 0.8) + 'px "Segoe UI Emoji","Apple Color Emoji",serif';
+    var pulse = 1 + Math.sin(performance.now() / 280) * 0.07;
+    ctx.save();
+    ctx.translate(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2);
+    ctx.scale(pulse, pulse);
+    ctx.fillText(food.donut ? '🍩' : '☕', 0, 1);
+    ctx.restore();
+
+    var n = Math.max(1, snake.length - 1);
+    for (var k = snake.length - 1; k >= 0; k--) {
+      var seg = snake[k];
+      var isHead = (k === 0);
+      var t = k / n;
+      var pad = isHead ? 1 : 2.2;
+      if (isHead) {
+        ctx.fillStyle = '#8dffc8';
+      } else {
+        ctx.fillStyle = 'hsl(160,' + Math.round(50 - t * 14) + '%,' + Math.round(58 - t * 24) + '%)';
+      }
+      roundRect(seg.x * CELL + pad, seg.y * CELL + pad, CELL - pad * 2, CELL - pad * 2, isHead ? 8 : 6);
+      ctx.fill();
+      if (isHead) { drawEyes(seg); }
+    }
+  }
+
+  function loop(t) {
+    if (!lastT) { lastT = t; }
+    var dt = t - lastT;
+    lastT = t;
+    if (dt > 300) { dt = 300; }
+
+    if (state === 'running') {
+      acc += dt;
+      while (acc >= stepMs && state === 'running') {
+        acc -= stepMs;
+        step();
+      }
+    }
+    if (state !== 'boss') { draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  function toggleBoss() {
+    if (state === 'boss') {
+      bossEl.classList.remove('show');
+      if (prevState === 'running') {
+        state = 'paused';
+        showOverlay('已暂停', '空格 / 点一下画面回去继续摸', '继续');
+      } else {
+        state = prevState;
+      }
+      lastT = 0;
+    } else {
+      prevState = state;
+      state = 'boss';
+      bossEl.classList.add('show');
+    }
+  }
+
+  var KEYMAP = {
+    arrowup: { x: 0, y: -1 }, arrowdown: { x: 0, y: 1 },
+    arrowleft: { x: -1, y: 0 }, arrowright: { x: 1, y: 0 },
+    w: { x: 0, y: -1 }, s: { x: 0, y: 1 }, a: { x: -1, y: 0 }, d: { x: 1, y: 0 }
+  };
+
+  document.addEventListener('keydown', function (e) {
+    var k = String(e.key || '').toLowerCase();
+
+    if (k === 'escape') { e.preventDefault(); toggleBoss(); return; }
+    if (k === ' ' || k === 'arrowup' || k === 'arrowdown' || k === 'arrowleft' || k === 'arrowright') {
+      e.preventDefault();
+    }
+    if (state === 'boss') { return; }
+
+    if (KEYMAP[k]) {
+      if (state === 'ready' || state === 'over') { start(); }
+      if (state === 'running') { pushDir(KEYMAP[k]); }
+      return;
+    }
+
+    if (k === ' ' || k === 'p') {
+      if (state === 'running') { pause(); }
+      else if (state === 'paused') { resume(); }
+      else { start(); }
+      return;
+    }
+
+    if (k === 'enter' || k === 'r') {
+      if (state === 'over' || state === 'paused' || state === 'ready') { start(); }
+    }
+  }, false);
+
+  canvas.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    if (state === 'running') { pause(); }
+    else if (state === 'paused') { resume(); }
+    else if (state === 'ready' || state === 'over') { start(); }
+  }, false);
+
+  ovBtn.addEventListener('click', function () {
+    if (state === 'paused') { resume(); }
+    else { start(); }
+  }, false);
+
+  var PADDIRS = {
+    up: { x: 0, y: -1 }, down: { x: 0, y: 1 },
+    left: { x: -1, y: 0 }, right: { x: 1, y: 0 }
+  };
+  var padBtns = document.querySelectorAll('.pad button');
+  for (var b = 0; b < padBtns.length; b++) {
+    (function (btn) {
+      btn.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        var nd = PADDIRS[btn.getAttribute('data-dir')];
+        if (state === 'ready' || state === 'over') { start(); }
+        else if (state === 'paused') { resume(); }
+        if (state === 'running') { pushDir(nd); }
+      }, false);
+    })(padBtns[b]);
+  }
+
+  window.addEventListener('blur', function () { pause(); }, false);
+
+  reset();
+  draw();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
