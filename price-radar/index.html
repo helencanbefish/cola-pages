@@ -74,6 +74,11 @@
   .sl .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
   .sl .name{font-size:13px}
   .sl .num{font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+  .numin{width:4.6em;font:inherit;font-size:15.5px;font-weight:600;text-align:right;
+    color:var(--ink);background:transparent;border:none;border-bottom:1px solid var(--line);
+    padding:0 2px 1px;font-variant-numeric:tabular-nums;outline:none}
+  .numin:focus{border-bottom-color:var(--brand)}
+  .numin::-webkit-outer-spin-button,.numin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   input[type=range]{width:100%;accent-color:var(--brand);margin:2px 0 0}
   .hint{font-size:12px;color:var(--ink2);margin-top:8px;line-height:1.6}
   .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
@@ -176,20 +181,21 @@
     <div class="sl">
       <div class="row">
         <span class="name">淘宝官旗 · 丝滑拿铁 268ml×15</span>
-        <span class="num"><b id="v268">69.3</b> 元/箱</span>
+        <span class="num"><input type="number" class="numin" id="n268" min="25" max="110" step="0.1" value="69.3"> 元/箱</span>
       </div>
-      <input type="range" id="r268" min="35" max="80" step="0.1" value="69.3">
+      <input type="range" id="r268" min="25" max="110" step="0.1" value="69.3">
       <div class="hint" id="h268">折 4.62 元/瓶 · 1.724 元/100ml</div>
     </div>
     <div class="sl">
       <div class="row">
         <span class="name">第三方 · 特浓拿铁 430ml×15</span>
-        <span class="num"><b id="v430">59.5</b> 元/箱</span>
+        <span class="num"><input type="number" class="numin" id="n430" min="25" max="140" step="0.5" value="59.5"> 元/箱</span>
       </div>
-      <input type="range" id="r430" min="40" max="90" step="0.5" value="59.5">
+      <input type="range" id="r430" min="25" max="140" step="0.5" value="59.5">
       <div class="hint" id="h430">折 3.97 元/瓶 · 0.923 元/100ml · 已售 55</div>
     </div>
   </div>
+  <div class="hint" style="margin-top:10px">滑块可以拖，数字也可以直接敲 —— 比如输入 65，就看官旗降到 65 元/箱时读盘变成什么样。</div>
 
   <div class="btns">
     <button id="btnFlat">官旗降到与最低价持平</button>
@@ -288,8 +294,16 @@
 
 <script>
 (function(){
-  var MIN = 0.85, MAX = 1.85;
+  var DATA_LO = 0.85, DATA_HI = 1.85;   // 数据本身覆盖的口径
+  var MIN = DATA_LO, MAX = DATA_HI;     // 当前量程：拖动超出时会自动放宽，圆点永远落在框内
   function pct(v){ return (v - MIN) / (MAX - MIN) * 100; }
+
+  function setScale(v268, v430){
+    var lo = Math.min(DATA_LO, v268, v430), hi = Math.max(DATA_HI, v268, v430);
+    var pad = Math.max((hi - lo) * 0.06, 0.02);
+    MIN = Math.round(Math.floor((lo - pad) / 0.02) * 0.02 * 100) / 100;
+    MAX = Math.round(Math.ceil((hi + pad) / 0.02) * 0.02 * 100) / 100;
+  }
 
   var BASE = 1.592;   // 出货价基准（64 元/箱 ÷ 15 ÷ 2.68），箱规为反推
   var MINV = 1.225;   // 同规格 268ml 最低到手价
@@ -312,17 +326,30 @@
   var COLOR = {brand:'#C4543A', platform:'#8A7C6D', third:'#2C4A3E'};
   var NAME  = {brand:'品牌直营', platform:'平台自营', third:'第三方'};
 
-  document.getElementById('band').style.left  = pct(1.0) + '%';
-  document.getElementById('band').style.width = (pct(1.5) - pct(1.0)) + '%';
-  document.getElementById('base').style.left  = pct(BASE) + '%';
-
-  var ticks = document.getElementById('ticks');
-  [0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8].forEach(function(t){
-    var d = document.createElement('div');
-    d.className='tick'; d.style.left = pct(t)+'%';
-    d.innerHTML = '<span>'+t.toFixed(1)+'</span>';
-    ticks.appendChild(d);
-  });
+  var ticksEl = document.getElementById('ticks');
+  var bandEl  = document.getElementById('band');
+  var baseEl  = document.getElementById('base');
+  var lastAxisKey = '';
+  function drawAxis(){
+    var key = MIN.toFixed(3) + '|' + MAX.toFixed(3);
+    if (key === lastAxisKey) return;
+    lastAxisKey = key;
+    bandEl.style.left  = pct(1.0) + '%';
+    bandEl.style.width = (pct(1.5) - pct(1.0)) + '%';
+    baseEl.style.left  = pct(BASE) + '%';
+    ticksEl.innerHTML = '';
+    var cands = [0.1, 0.15, 0.2, 0.25, 0.5], step = 0.5;
+    for (var i = 0; i < cands.length; i++){
+      if ((MAX - MIN) / cands[i] <= 14){ step = cands[i]; break; }
+    }
+    var dec = step < 0.2 ? 2 : 1;
+    for (var t = Math.ceil(MIN / step) * step; t <= MAX + 1e-9; t += step){
+      var d = document.createElement('div');
+      d.className = 'tick'; d.style.left = pct(t) + '%';
+      d.innerHTML = '<span>' + t.toFixed(dec) + '</span>';
+      ticksEl.appendChild(d);
+    }
+  }
 
   var dotsEl = document.getElementById('dots'), dots = [];
   data.forEach(function(d,i){
@@ -389,15 +416,24 @@
     var p268 = parseFloat(r268.value), p430 = parseFloat(r430.value);
     var v268 = per268(p268), v430 = per430(p430);
 
-    document.getElementById('v268').textContent = p268.toFixed(1);
-    document.getElementById('v430').textContent = p430.toFixed(1);
+    setScale(v268, v430);
+    drawAxis();
+
+    var n268 = document.getElementById('n268'), n430 = document.getElementById('n430');
+    if (document.activeElement !== n268) n268.value = p268.toFixed(1);
+    if (document.activeElement !== n430) n430.value = p430.toFixed(1);
+
     document.getElementById('h268').textContent =
       '折 '+(p268/15).toFixed(2)+' 元/瓶 · '+v268.toFixed(3)+' 元/100ml';
     document.getElementById('h430').textContent =
       '折 '+(p430/15).toFixed(2)+' 元/瓶 · '+v430.toFixed(3)+' 元/100ml · 已售 55';
 
-    dots[10].style.left = pct(v268)+'%';
-    dots[0].style.left  = pct(v430)+'%';
+    dots.forEach(function(el, i){
+      var v = data[i].v;
+      if (data[i].key === 'official') v = v268;
+      else if (i === 0) v = v430;
+      el.style.left = pct(v) + '%';
+    });
 
     var gap = (v268 / MINV - 1) * 100;
     document.getElementById('gap').textContent = (gap>=0?'+':'')+gap.toFixed(1)+'%';
@@ -441,6 +477,24 @@
 
   r268.addEventListener('input', render);
   r430.addEventListener('input', render);
+
+  function bindNum(nEl, rEl){
+    var lo = parseFloat(rEl.min), hi = parseFloat(rEl.max);
+    nEl.addEventListener('input', function(){
+      var v = parseFloat(nEl.value);
+      if (isNaN(v) || v < lo || v > hi) return;   // 半截输入或越界先不动，等失焦再归位
+      rEl.value = v; render();
+    });
+    nEl.addEventListener('change', function(){
+      var v = parseFloat(nEl.value);
+      if (isNaN(v)) { nEl.value = parseFloat(rEl.value).toFixed(1); return; }
+      v = Math.min(hi, Math.max(lo, v));
+      nEl.value = v.toFixed(1);
+      rEl.value = v; render();
+    });
+  }
+  bindNum(document.getElementById('n268'), r268);
+  bindNum(document.getElementById('n430'), r430);
   document.getElementById('btnFlat').addEventListener('click', function(){
     r268.value = (MINV*2.68*15).toFixed(1); render();
   });
