@@ -150,7 +150,7 @@
     </div>
     <div class="card bad" id="c3">
       <div class="k">最低零售价 低于 出货价</div>
-      <div class="v" id="dev">−23.1%</div>
+      <div class="v" id="dev">−23.0%</div>
       <div class="n" id="devnote">1.225 vs 出货价 1.592 元/100ml<br>
         零售加价是正的 —— 这个价不可能来自正常进货</div>
     </div>
@@ -276,7 +276,7 @@
     <b>可以直接核对的部分</b>
     <ul>
       <li>上表全部 12 条线上价格与销量：<span class="src real">自采</span>，2026-11-25 截图，可逐张对。</li>
-      <li>两个官旗 0.9%、官旗与最低价 41%、相对出货价 −23.1%：由上面的数直接算出。（若把拼多多官旗的 230ml 也归一进来，价差为 42%——两个数都对，本文统一取 41%，同规格才可比。）</li>
+      <li>两个官旗 0.9%、官旗与最低价 41%、相对出货价 −23.0%：由上面的数直接算出。（若把拼多多官旗的 230ml 也归一进来，价差为 42%——两个数都对，本文统一取 41%，同规格才可比。）</li>
     </ul>
     <b>属假设、需要客户方确认的部分</b>
     <ul>
@@ -453,9 +453,7 @@
     document.getElementById('c2').className = 'card ' + cls;
 
     var dev = (v268/BASE - 1) * 100;
-    document.getElementById('dev').textContent = (dev>=0?'+':'−')+Math.abs(dev).toFixed(1)+'%';
-    document.getElementById('devnote').innerHTML = v268.toFixed(3)+' vs 出货价 '+BASE.toFixed(3)+' 元/100ml';
-    document.getElementById('c3').className = 'card ' + (dev < -3 || dev > 25 ? 'bad' : 'ok');
+    // c3（最低零售价 vs 出货价）是固定事实，不随滑块变；滑块对应的数在 c1 / c2 与下方结论里
 
     var v = document.getElementById('verdict');
     if (gap > 15){
