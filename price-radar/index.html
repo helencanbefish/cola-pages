@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>价盘雷达 · 雀巢即饮咖啡</title>
+<style>
+  :root{
+    --ink:#2E2A26; --ink2:#6B635A; --paper:#FAF8F3; --line:#DED7CA;
+    --brand:#C4543A; --platform:#8A7C6D; --third:#2C4A3E;
+    --warn:#B4402E; --ok:#2C4A3E; --track:#F1ECE2;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 72px}
+  header{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+  h1{font-size:21px;margin:0 0 6px;letter-spacing:.5px}
+  .sub{font-size:13px;color:var(--ink2);line-height:1.8}
+  h2{font-size:14px;margin:34px 0 12px;letter-spacing:1px;color:var(--ink2);font-weight:600}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .cards.wide{grid-template-columns:repeat(auto-fit,minmax(258px,1fr))}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card .k{font-size:12px;color:var(--ink2);margin-bottom:6px;line-height:1.4}
+  .card .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.25}
+  .card .v.sm{font-size:16px}
+  .card .n{font-size:11.5px;color:var(--ink2);margin-top:6px;line-height:1.55}
+  .card.bad .v{color:var(--warn)}
+  .card.ok .v{color:var(--ok)}
+  .card.empty .v{color:#9C9284}
+  .card.plan{border-style:dashed;border-color:#CFC5B4;background:#FCFAF6;padding-bottom:15px}
+  .card.plan .v{font-size:14.5px;color:#8A7C6D;letter-spacing:.3px;font-weight:500}
+  .card.plan .n{margin-top:8px}
+  .card.plan .n b{color:var(--ink);font-weight:600;
+    display:inline-block;min-width:34px;letter-spacing:.5px}
+  .card.plan .n .ln{display:block;margin-bottom:5px}
+  .tl{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--ink2)}
+  .tl span{background:#fff;border:1px solid var(--line);border-radius:20px;padding:4px 11px}
+  .tl span b{color:var(--ink);font-weight:600}
+
+  /* 数据性质标 */
+  .src{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:20px;
+    border:1px solid;line-height:1.6;white-space:nowrap;vertical-align:middle}
+  .src.real{color:#2C4A3E;border-color:#9FB8AC;background:#EEF3F0}
+  .src.report{color:#6B635A;border-color:#D5CCBC;background:#F7F3EA}
+  .src.est{color:#B4402E;border-color:#E3B3A7;background:#FBEFEB}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);
+    margin:0 0 18px;padding:10px 14px;background:#fff;border:1px solid var(--line);border-radius:10px}
+  .legend b{font-weight:600;color:var(--ink)}
+
+  .ruler{margin:24px 0 8px;position:relative;height:150px;padding:0 4px}
+  .track{position:absolute;left:4px;right:4px;top:82px;height:2px;background:var(--line)}
+  .band{position:absolute;top:52px;height:62px;background:rgba(44,74,62,.08);
+    border-left:1px dashed rgba(44,74,62,.45);border-right:1px dashed rgba(44,74,62,.45)}
+  .band span{position:absolute;top:-20px;left:2px;font-size:11px;color:var(--ok);white-space:nowrap}
+  .base{position:absolute;top:34px;height:104px;border-left:2px dotted var(--brand);z-index:2}
+  .base span{position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);
+    font-size:11px;color:var(--brand);white-space:nowrap}
+  .tick{position:absolute;top:78px;width:1px;height:8px;background:var(--line)}
+  .tick span{position:absolute;top:12px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--ink2)}
+  .dot{position:absolute;width:11px;height:11px;border-radius:50%;transform:translate(-50%,-50%);
+    top:83px;transition:left .18s ease;z-index:3}
+  .dot.live{outline:3px solid rgba(196,84,58,.18);z-index:5}
+  .dot .tip{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;font-size:11px;padding:3px 7px;border-radius:4px;
+    white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:9}
+  .dot:hover .tip{opacity:1}
+  .dotlegend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-top:8px}
+  .chip{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+  .ctrl{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:8px}
+  .sl{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .sl .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+  .sl .name{font-size:13px}
+  .sl .num{font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+  input[type=range]{width:100%;accent-color:var(--brand);margin:2px 0 0}
+  .hint{font-size:12px;color:var(--ink2);margin-top:8px;line-height:1.6}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  button{font:inherit;font-size:13px;padding:8px 14px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line);background:#fff;color:var(--ink);transition:.15s}
+  button:hover{border-color:var(--ink2)}
+  .verdict{margin-top:18px;padding:14px 16px;border-radius:10px;font-size:13.5px;line-height:1.85;
+    background:#fff;border:1px solid var(--line)}
+  .verdict b{font-weight:600}
+  .muted{color:#6B635A}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #EFEAE0;font-variant-numeric:tabular-nums}
+  th{background:#F4F0E7;font-weight:600;font-size:12px;color:var(--ink2)}
+  tr:last-child td{border-bottom:none}
+
+  /* 线下价梯 */
+  .ladder{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 16px}
+  .lad{display:grid;grid-template-columns:170px 1fr 158px 118px;gap:12px;
+    align-items:center;margin-bottom:11px;font-size:12.5px}
+  .lad .lb{color:var(--ink2);line-height:1.35}
+  .lad .tr{position:relative;height:16px;background:var(--track);border-radius:3px}
+  .lad .fl{position:absolute;left:0;top:0;height:16px;border-radius:3px}
+  .lad .segt{position:absolute;top:0;height:16px;border-radius:2px}
+  .lad .pv{font-variant-numeric:tabular-nums;color:var(--ink);line-height:1.4}
+  .lad .pv em{display:block;font-style:normal;font-size:11px;color:var(--ink2)}
+  .lad .dv{font-size:11.5px;font-variant-numeric:tabular-nums;text-align:right;color:var(--ink2)}
+  .lad.hi .lb{color:var(--ink);font-weight:600}
+  .note{font-size:12px;color:var(--ink2);line-height:1.9;margin-top:12px}
+  .note b{color:var(--ink)}
+
+  .gapbox{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;
+    font-size:13px;line-height:1.9}
+  .gapbox ul{margin:8px 0 0;padding-left:20px}
+  .gapbox li{margin-bottom:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>价盘雷达 · 雀巢即饮咖啡</h1>
+    <div class="sub">
+      上半张看线上：同一个货架上谁在卖多少钱。<br>
+      下半张看线下：一瓶货从出厂到货架，中间被加了多少、被减了多少。<br>
+      所有价格按 <b>元/100ml</b> 归一（规格从 230ml 到 430ml，只有同口径才能比）。
+    </div>
+  </header>
+
+  <div class="legend">
+    <span><b>数据性质：</b></span>
+    <span><span class="src real">自采</span> 2026-11-25 本人截图，有原图可溯</span>
+    <span><span class="src report">报道</span> 公开媒体报道口径，未取得原件</span>
+    <span><span class="src est">推算</span> 由已知条件反推，属假设</span>
+  </div>
+
+  <h2>四个数</h2>
+  <div class="cards">
+    <div class="card bad" id="c1">
+      <div class="k">同款 268ml：官旗比最低价贵</div>
+      <div class="v" id="gap">+42.0%</div>
+      <div class="n" id="gapnote">1.739 vs 1.225 元/100ml · <span class="src real">自采</span></div>
+    </div>
+    <div class="card bad" id="c2">
+      <div class="k">官旗位置</div>
+      <div class="v" id="pos">价带上沿外</div>
+      <div class="n" id="posnote">1.739 元/100ml · 行业价带 1.0–1.5</div>
+    </div>
+    <div class="card bad" id="c3">
+      <div class="k">最低零售价 低于 出货价</div>
+      <div class="v" id="dev">−23.1%</div>
+      <div class="n" id="devnote">1.225 vs 出货价 1.592 元/100ml<br>
+        零售加价是正的 —— 这个价不可能来自正常进货</div>
+    </div>
+    <div class="card ok">
+      <div class="k">两个官旗之间的差</div>
+      <div class="v">+0.9%</div>
+      <div class="n">淘宝 268ml 1.724 vs 拼多多 230ml 1.739<br>跨平台直营，价盘是守住的</div>
+    </div>
+  </div>
+
+  <h2>线上 · 价带定位图</h2>
+  <div class="ruler" id="ruler">
+    <div class="band" id="band"><span>行业价带 1.0–1.5（饮料价）</span></div>
+    <div class="base" id="base"><span>出货价 1.592 <span class="src est">推算</span></span></div>
+    <div class="track"></div>
+    <div id="ticks"></div>
+    <div id="dots"></div>
+  </div>
+  <div class="dotlegend">
+    <span><i class="chip" style="background:#C4543A"></i>品牌直营</span>
+    <span><i class="chip" style="background:#8A7C6D"></i>平台自营 / 平台活动</span>
+    <span><i class="chip" style="background:#2C4A3E"></i>第三方店铺</span>
+    <span>红色虚线 = 出货价（64 元/箱 ÷ 15 ÷ 2.68，箱规为反推）</span>
+  </div>
+
+  <h2>拖一下试试</h2>
+  <div class="ctrl">
+    <div class="sl">
+      <div class="row">
+        <span class="name">淘宝官旗 · 丝滑拿铁 268ml×15</span>
+        <span class="num"><b id="v268">69.3</b> 元/箱</span>
+      </div>
+      <input type="range" id="r268" min="35" max="80" step="0.1" value="69.3">
+      <div class="hint" id="h268">折 4.62 元/瓶 · 1.724 元/100ml</div>
+    </div>
+    <div class="sl">
+      <div class="row">
+        <span class="name">第三方 · 特浓拿铁 430ml×15</span>
+        <span class="num"><b id="v430">59.5</b> 元/箱</span>
+      </div>
+      <input type="range" id="r430" min="40" max="90" step="0.5" value="59.5">
+      <div class="hint" id="h430">折 3.97 元/瓶 · 0.923 元/100ml · 已售 55</div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button id="btnFlat">官旗降到与最低价持平</button>
+    <button id="btnBase">官旗降到出货价（1.592）</button>
+    <button id="btnBand">官旗拖进价带（1.45）</button>
+    <button id="btnReset">还原真实数据</button>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <h2>线下 · 一瓶货的价格阶梯（268ml）</h2>
+  <div class="ladder" id="ladder"></div>
+  <div class="note">
+    <b>这张梯子讲完了一件事：</b>终端进货 4 元、卖 5–6 元，本来有得赚；
+    但线上卖 3.28 元，<b>比终端进货还便宜 18%</b> —— 货架上的人不可能赢。
+    于是"店里一个月只能卖两三件"就不是需求问题，是价格结构问题。<br>
+    <span class="src report">报道</span> 的六档里，只有最后一档「线上第三方零售」是自采；
+    前五档来自媒体对经销商与店主的采访，<b>没有拿到出厂价台账或经销商发票</b>，属二手口径。
+  </div>
+
+  <h2>倒挂的三个指标</h2>
+  <div class="cards wide">
+    <div class="card bad">
+      <div class="k">名义价差率 <span class="src real">已可算</span></div>
+      <div class="v">42%</div>
+      <div class="n"><span class="ln"><b>口径</b>同 SKU 全网最高 ÷ 最低 − 1</span>
+        <span class="ln"><b>来源</b>线上公开价，截图可溯，今天就能出</span>
+        <span class="ln"><b>判读</b>回答“消费者会不会觉得自己被坑”，管的人是定价与营销</span></div>
+    </div>
+    <div class="card plan">
+      <div class="k">实际到手成本离散度 <span class="src est">待建指标</span></div>
+      <div class="v">待接入 DMS</div>
+      <div class="n"><span class="ln"><b>口径</b>（进货价 − 返点 − 搭赠折算）的标准差 ÷ 均值，按区域月度</span>
+        <span class="ln"><b>来源</b>DMS 进销存 + 费用核销，两个系统都要开；接完约第 2 周出第一版</span>
+        <span class="ln"><b>判读</b>高于 0.10 意味着同一箱货在不同区域拿到手已经不是一个价（<b>建议线，可按实际分布校准</b>）</span></div>
+      <div class="n" style="margin-top:8px;padding-top:8px;border-top:1px dashed #E4DCCB">
+        <b style="color:var(--ink)">这是本系统最想建的一个数。</b>倒挂的根不是价差，是库存风险没有被定价；
+        而库存风险的真实水位，只藏在这个数里。</div>
+    </div>
+    <div class="card plan">
+      <div class="k">经销商主动续约率 <span class="src est">待建指标</span></div>
+      <div class="v">待接入合同台账</div>
+      <div class="n"><span class="ln"><b>口径</b>到期主动续签家数 ÷ 到期应续签家数</span>
+        <span class="ln"><b>来源</b>经销商合同台账 + 续签记录；接完约第 4 周出第一版</span>
+        <span class="ln"><b>判读</b>低于 70% 黄、低于 55% 红（同上，建议线）</span></div>
+      <div class="n" style="margin-top:8px;padding-top:8px;border-top:1px dashed #E4DCCB">
+        代理指标已经有了：<span class="src report">报道</span>「超 40% 核心经销商考虑缩减或转投」。
+        若这条成立，续约率很可能已在 60% 以下。</div>
+    </div>
+  </div>
+
+  <div class="tl">
+    <span><b>今天就有</b>　名义价差率</span>
+    <span><b>第 2 周</b>　到手成本离散度（需 DMS + 费用核销）</span>
+    <span><b>第 4 周</b>　主动续约率（需合同台账）</span>
+  </div>
+
+  <div class="note" style="margin-top:10px">
+    <b>为什么不签约比价格更早报警：</b>价格是今天的事，续约是半年后的事。
+    一个人决定不续约，说明他算过账、已经不指望这套体系了——
+    <b>那时候价盘还没崩，但崩的条件已经齐了。</b>
+  </div>
+
+  <h2>完整价格表（线上，按元/100ml 排序）</h2>
+  <table>
+    <thead>
+      <tr><th>元/100ml</th><th>相对出货价</th><th>平台 · 店铺</th><th>身份</th><th>规格</th><th>到手价</th><th>元/瓶</th><th>销量</th><th>来源</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <h2>哪些是真的，哪些是假设</h2>
+  <div class="gapbox">
+    <b>可以直接核对的部分</b>
+    <ul>
+      <li>上表全部 12 条线上价格与销量：<span class="src real">自采</span>，2026-11-25 截图，可逐张对。</li>
+      <li>两个官旗 0.9%、官旗与最低价 42%、相对出货价 −23.1%：由上面的数直接算出。</li>
+    </ul>
+    <b>属假设、需要客户方确认的部分</b>
+    <ul>
+      <li><span class="src est">推算</span> <b>64 元/箱指的是丝滑拿铁</b> —— 报道只写"核心产品"。这一条若错，出货价基准线与整张价梯都要重算。</li>
+      <li><span class="src est">推算</span> <b>箱规是 268ml×15</b> —— 报道未注明。这条错的影响较小：换成 230ml×15，基准升到 1.855，最低价 1.225 仍低于它，<b>结论方向不变，只会更严重</b>。</li>
+      <li><span class="src report">报道</span> 线下五档价格（进货 62、甩卖 56–58、终端进货 60、零售 5–6）来自媒体采访，未取得台账。</li>
+      <li><b>430ml 的线下销量、各区域实际到手成本、续约率</b> —— 都是“待建数据”，不是“待核事实”。
+        <b>待建不等于空着</b>：口径、数据源、接入周次都已写在上面的卡片里，不填模拟值。</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <b>不参与比价的：</b>金牌馆藏白咖啡摩卡丝滑拿铁多口味组合装 120.9 元 —— 不同产品线、不同包装。比价的最小单位是 SKU。<br>
+    <b>商品名：</b>天猫超市与百亿补贴两条链接，标题写作"即饮拿铁 / 即饮咖啡"，实为同一支 268ml 丝滑拿铁的不同链接，本表统一记为"丝滑拿铁"。<br>
+    <b>待确认：</b>拼多多那条 39.4 元的链接，页面左下角显示"品牌"而非店铺名，店铺主体无法确认。
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var MIN = 0.85, MAX = 1.85;
+  function pct(v){ return (v - MIN) / (MAX - MIN) * 100; }
+
+  var BASE = 1.592;   // 出货价基准（64 元/箱 ÷ 15 ÷ 2.68），箱规为反推
+  var MINV = 1.225;   // 同规格 268ml 最低到手价
+
+  var data = [
+    {v:0.923, shop:'淘宝 · 大彩饮品',        type:'third',    spec:'430ml×15', price:'59.5 元',  per:'3.97', sale:'已售 55'},
+    {v:0.953, shop:'淘宝 · 怦然饮品',        type:'third',    spec:'430ml×15', price:'61.5 元',  per:'4.10', sale:'已售 27'},
+    {v:1.225, shop:'拼多多 · 店名未显示',     type:'third',    spec:'268ml×12', price:'39.4 元',  per:'3.28', sale:'200万+瓶', key:'min'},
+    {v:1.313, shop:'拼多多 · 万优食品坊',     type:'third',    spec:'268ml×15', price:'52.8 元',  per:'3.52', sale:'1.2万+'},
+    {v:1.330, shop:'拼多多 · 乐宝饮品店',     type:'third',    spec:'268ml×12', price:'42.77 元', per:'3.56', sale:'3.3万+'},
+    {v:1.369, shop:'天猫 · 百亿补贴',        type:'platform', spec:'268ml×6起', price:'22.02 元', per:'3.67', sale:'9万+'},
+    {v:1.403, shop:'拼多多 · 翊鸿食品优选',   type:'third',    spec:'268ml×30', price:'112.8 元', per:'3.76', sale:'3285 瓶'},
+    {v:1.484, shop:'京东 · 京东超市',        type:'platform', spec:'268ml×15', price:'59.64 元', per:'3.98', sale:'—'},
+    {v:1.577, shop:'天猫 · 天猫超市',        type:'platform', spec:'268ml×15', price:'63.4 元',  per:'4.23', sale:'1万+'},
+    {v:1.583, shop:'天猫 · 天猫超市',        type:'platform', spec:'268ml×12', price:'50.9 元',  per:'4.24', sale:'7000+'},
+    {v:1.724, shop:'淘宝 · 雀巢官方旗舰店',   type:'brand',    spec:'268ml×15', price:'69.3 元',  per:'4.62', sale:'6万+', key:'official'},
+    {v:1.739, shop:'拼多多 · 雀巢官方旗舰店', type:'brand',    spec:'230ml×15', price:'60 元',    per:'4.00', sale:'10万+'}
+  ];
+
+  var COLOR = {brand:'#C4543A', platform:'#8A7C6D', third:'#2C4A3E'};
+  var NAME  = {brand:'品牌直营', platform:'平台自营', third:'第三方'};
+
+  document.getElementById('band').style.left  = pct(1.0) + '%';
+  document.getElementById('band').style.width = (pct(1.5) - pct(1.0)) + '%';
+  document.getElementById('base').style.left  = pct(BASE) + '%';
+
+  var ticks = document.getElementById('ticks');
+  [0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8].forEach(function(t){
+    var d = document.createElement('div');
+    d.className='tick'; d.style.left = pct(t)+'%';
+    d.innerHTML = '<span>'+t.toFixed(1)+'</span>';
+    ticks.appendChild(d);
+  });
+
+  var dotsEl = document.getElementById('dots'), dots = [];
+  data.forEach(function(d,i){
+    var el = document.createElement('div');
+    el.className = 'dot' + (d.key ? ' live' : '');
+    el.style.background = COLOR[d.type];
+    el.style.left = pct(d.v) + '%';
+    var off = 0;
+    if (d.v > 1.28 && d.v < 1.42) off = (i % 2) ? -14 : 14;
+    if (d.v > 1.55 && d.v < 1.61) off = (i % 2) ? -12 : 12;
+    if (d.v > 1.70) off = (i % 2) ? -12 : 12;
+    el.style.top = (83 + off) + 'px';
+    el.innerHTML = '<span class="tip">'+d.shop+' · '+d.v.toFixed(3)+'</span>';
+    dotsEl.appendChild(el); dots.push(el);
+  });
+
+  var tbody = document.getElementById('tbody');
+  data.slice().sort(function(a,b){return a.v-b.v;}).forEach(function(d){
+    var dev = (d.v/BASE - 1) * 100;
+    var sign = dev >= 0 ? '+' : '−';
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>'+d.v.toFixed(3)+'</b></td>'+
+      '<td style="color:'+(dev<0?'#B4402E':'#6B635A')+'">'+sign+Math.abs(dev).toFixed(1)+'%</td>'+
+      '<td>'+d.shop+'</td>'+
+      '<td><i class="chip" style="background:'+COLOR[d.type]+'"></i>'+NAME[d.type]+'</td>'+
+      '<td>'+d.spec+'</td><td>'+d.price+'</td><td>'+d.per+'</td><td>'+d.sale+'</td>'+
+      '<td><span class="src real">自采</span></td>';
+    tbody.appendChild(tr);
+  });
+
+  // ---- 线下价梯 ----
+  var SCALE = 6.5;
+  var LAD = [
+    {lb:'品牌出货价',   from:0, to:4.27, color:'#C4543A', pv:'4.27 元/瓶', sub:'64 元/箱', src:'est',    dv:'+6.8%'},
+    {lb:'经销商进货',   from:0, to:4.13, color:'#C88E77', pv:'4.13 元/瓶', sub:'62 元/箱', src:'report', dv:'+3.3%'},
+    {lb:'被要求甩卖',   from:0, to:3.73, color:'#B4402E', pv:'3.73–3.87 元/瓶', sub:'56–58 元/箱 · 每箱亏 4–6 元', src:'report', dv:'−6.8%', hi:true, seg:{from:3.73,to:3.87}},
+    {lb:'终端进货',     from:0, to:4.00, color:'#8A7C6D', pv:'4.00 元/瓶', sub:'60 元/箱 · 便利店口径', src:'report', dv:'0（基准）'},
+    {lb:'终端零售',     from:0, to:5.50, color:'#2C4A3E', pv:'5–6 元/瓶',  sub:'毛利 1–2 元/瓶', src:'report', dv:'+37.5% ~ +50%'},
+    {lb:'线上第三方零售', from:0, to:3.28, color:'#C4543A', pv:'3.28 元/瓶', sub:'拼多多最低链接', src:'real', dv:'−18.0%', hi:true}
+  ];
+  var lw = document.getElementById('ladder');
+  LAD.forEach(function(r){
+    var row = document.createElement('div');
+    row.className = 'lad' + (r.hi ? ' hi' : '');
+    var seg = '';
+    if (r.seg){
+      seg = '<span class="segt" style="left:'+(r.seg.from/SCALE*100)+'%;width:'+
+        ((r.seg.to-r.seg.from)/SCALE*100)+'%;background:#B4402E;opacity:.55"></span>';
+    }
+    row.innerHTML =
+      '<span class="lb">'+r.lb+'</span>'+
+      '<span class="tr"><span class="fl" style="width:'+(r.to/SCALE*100)+'%;background:'+r.color+'"></span>'+seg+'</span>'+
+      '<span class="pv">'+r.pv+' <span class="src '+r.src+'">'+(r.src==='real'?'自采':r.src==='report'?'报道':'推算')+'</span><em>'+r.sub+'</em></span>'+
+      '<span class="dv">'+r.dv+'</span>';
+    lw.appendChild(row);
+  });
+
+  // ---- 交互 ----
+  var r268 = document.getElementById('r268'), r430 = document.getElementById('r430');
+  function per268(p){ return p / 15 / 2.68; }
+  function per430(p){ return p / 15 / 4.30; }
+
+  function render(){
+    var p268 = parseFloat(r268.value), p430 = parseFloat(r430.value);
+    var v268 = per268(p268), v430 = per430(p430);
+
+    document.getElementById('v268').textContent = p268.toFixed(1);
+    document.getElementById('v430').textContent = p430.toFixed(1);
+    document.getElementById('h268').textContent =
+      '折 '+(p268/15).toFixed(2)+' 元/瓶 · '+v268.toFixed(3)+' 元/100ml';
+    document.getElementById('h430').textContent =
+      '折 '+(p430/15).toFixed(2)+' 元/瓶 · '+v430.toFixed(3)+' 元/100ml · 已售 55';
+
+    dots[10].style.left = pct(v268)+'%';
+    dots[0].style.left  = pct(v430)+'%';
+
+    var gap = (v268 / MINV - 1) * 100;
+    document.getElementById('gap').textContent = (gap>=0?'+':'')+gap.toFixed(1)+'%';
+    document.getElementById('gapnote').innerHTML = v268.toFixed(3)+' vs '+MINV.toFixed(3)+' 元/100ml · <span class="src real">自采</span>';
+    document.getElementById('c1').className = 'card ' + (gap > 15 ? 'bad' : 'ok');
+
+    var pos, pn, cls;
+    if (v268 > 1.5){ pos='价带上沿外'; cls='bad'; pn=v268.toFixed(3)+' 元/100ml · 高于 1.5'; }
+    else if (v268 < 1.0){ pos='价带下沿外'; cls='bad'; pn=v268.toFixed(3)+' 元/100ml · 低于 1.0'; }
+    else { pos='在价带内'; cls='ok'; pn=v268.toFixed(3)+' 元/100ml · 落在 1.0–1.5'; }
+    document.getElementById('pos').textContent = pos;
+    document.getElementById('posnote').textContent = pn;
+    document.getElementById('c2').className = 'card ' + cls;
+
+    var dev = (v268/BASE - 1) * 100;
+    document.getElementById('dev').textContent = (dev>=0?'+':'−')+Math.abs(dev).toFixed(1)+'%';
+    document.getElementById('devnote').innerHTML = v268.toFixed(3)+' vs 出货价 '+BASE.toFixed(3)+' 元/100ml';
+    document.getElementById('c3').className = 'card ' + (dev < -3 || dev > 25 ? 'bad' : 'ok');
+
+    var v = document.getElementById('verdict');
+    if (gap > 15){
+      v.innerHTML = '<b>现在是失守状态。</b>同一款 268ml，官旗 '+(p268/15).toFixed(2)+
+        ' 元一瓶，第三方 '+(MINV*2.68).toFixed(2)+' 元一瓶，差 '+gap.toFixed(0)+
+        '%。消费者不需要会算单价，也能看出「楼上贵一块三」。<br>'+
+        '<span class="muted">这时如果只靠"统一价盘"，官旗要降到 '+(MINV*2.68*15).toFixed(0)+
+        ' 元/箱才能持平 —— 毛利被吃掉，而且第三方还能继续往下走。</span>';
+    } else if (v268 > 1.5){
+      v.innerHTML = '<b>价差收窄了，但官旗还在行业价带外面。</b>你把价差压到 '+gap.toFixed(0)+
+        '%，代价是仍停在 '+v268.toFixed(2)+' 元/100ml —— 比东鹏大咖的 1.25 高一截，消费者会在货架前换手。<br>'+
+        '<span class="muted">这一步说明：把价差压小，和让价格有竞争力，是两件事。</span>';
+    } else if (dev < -3){
+      v.innerHTML = '<b>官旗自己的零售价跌破了出货价。</b>这在经济上讲不通 —— 零售要加价，不该减价。<br>'+
+        '<span class="muted">除非是清库存、临期或专项补贴。一旦官旗这样卖，全网的价盘基准就没了。</span>';
+    } else {
+      v.innerHTML = '<b>价差 '+gap.toFixed(0)+'%，官旗在价带内，也还在出货价之上。</b>看起来很健康 —— 但代价是官旗比真实价低了 '+
+        ((69.3-p268)/69.3*100).toFixed(0)+'%。<br>'+
+        '<span class="muted">真正可持续的解法不是把官旗拖下来，而是让两个渠道不卖同一个规格：'+
+        '天猫守 268ml，拼多多与线下走 230ml / 430ml，同款比价从结构上消失。这就是"规格区隔"。</span>';
+    }
+  }
+
+  r268.addEventListener('input', render);
+  r430.addEventListener('input', render);
+  document.getElementById('btnFlat').addEventListener('click', function(){
+    r268.value = (MINV*2.68*15).toFixed(1); render();
+  });
+  document.getElementById('btnBase').addEventListener('click', function(){
+    r268.value = (BASE*2.68*15).toFixed(1); render();
+  });
+  document.getElementById('btnBand').addEventListener('click', function(){
+    r268.value = (1.45*2.68*15).toFixed(1); render();
+  });
+  document.getElementById('btnReset').addEventListener('click', function(){
+    r268.value = 69.3; r430.value = 59.5; render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
