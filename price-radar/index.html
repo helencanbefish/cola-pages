@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -140,8 +140,8 @@
   <div class="cards">
     <div class="card bad" id="c1">
       <div class="k">同款 268ml：官旗比最低价贵</div>
-      <div class="v" id="gap">+42.0%</div>
-      <div class="n" id="gapnote">1.739 vs 1.225 元/100ml · <span class="src real">自采</span></div>
+      <div class="v" id="gap">+40.7%</div>
+      <div class="n" id="gapnote">1.724 vs 1.225 元/100ml · <span class="src real">自采</span></div>
     </div>
     <div class="card bad" id="c2">
       <div class="k">官旗位置</div>
@@ -208,6 +208,10 @@
 
   <h2>线下 · 一瓶货的价格阶梯（268ml）</h2>
   <div class="ladder" id="ladder"></div>
+  <div class="note" style="margin-top:8px">
+    最后一列 = 相对<b>品牌出货价 4.27 元/瓶</b>的偏离。
+    注意终端进货 60 元/箱（4.00）竟然低于 64 元的出货价——<b>这一条本身就说明 64 元这条线没有被执行到底</b>。
+  </div>
   <div class="note">
     <b>这张梯子讲完了一件事：</b>终端进货 4 元、卖 5–6 元，本来有得赚；
     但线上卖 3.28 元，<b>比终端进货还便宜 18%</b> —— 货架上的人不可能赢。
@@ -220,8 +224,8 @@
   <div class="cards wide">
     <div class="card bad">
       <div class="k">名义价差率 <span class="src real">已可算</span></div>
-      <div class="v">42%</div>
-      <div class="n"><span class="ln"><b>口径</b>同 SKU 全网最高 ÷ 最低 − 1</span>
+      <div class="v">41%</div>
+      <div class="n"><span class="ln"><b>口径</b>同款 268ml 官旗最高（1.724）÷ 全网最低（1.225）− 1</span>
         <span class="ln"><b>来源</b>线上公开价，截图可溯，今天就能出</span>
         <span class="ln"><b>判读</b>回答“消费者会不会觉得自己被坑”，管的人是定价与营销</span></div>
     </div>
@@ -272,7 +276,7 @@
     <b>可以直接核对的部分</b>
     <ul>
       <li>上表全部 12 条线上价格与销量：<span class="src real">自采</span>，2026-11-25 截图，可逐张对。</li>
-      <li>两个官旗 0.9%、官旗与最低价 42%、相对出货价 −23.1%：由上面的数直接算出。</li>
+      <li>两个官旗 0.9%、官旗与最低价 41%、相对出货价 −23.1%：由上面的数直接算出。（若把拼多多官旗的 230ml 也归一进来，价差为 42%——两个数都对，本文统一取 41%，同规格才可比。）</li>
     </ul>
     <b>属假设、需要客户方确认的部分</b>
     <ul>
@@ -383,12 +387,12 @@
   // ---- 线下价梯 ----
   var SCALE = 6.5;
   var LAD = [
-    {lb:'品牌出货价',   from:0, to:4.27, color:'#C4543A', pv:'4.27 元/瓶', sub:'64 元/箱', src:'est',    dv:'+6.8%'},
-    {lb:'经销商进货',   from:0, to:4.13, color:'#C88E77', pv:'4.13 元/瓶', sub:'62 元/箱', src:'report', dv:'+3.3%'},
-    {lb:'被要求甩卖',   from:0, to:3.73, color:'#B4402E', pv:'3.73–3.87 元/瓶', sub:'56–58 元/箱 · 每箱亏 4–6 元', src:'report', dv:'−6.8%', hi:true, seg:{from:3.73,to:3.87}},
-    {lb:'终端进货',     from:0, to:4.00, color:'#8A7C6D', pv:'4.00 元/瓶', sub:'60 元/箱 · 便利店口径', src:'report', dv:'0（基准）'},
-    {lb:'终端零售',     from:0, to:5.50, color:'#2C4A3E', pv:'5–6 元/瓶',  sub:'毛利 1–2 元/瓶', src:'report', dv:'+37.5% ~ +50%'},
-    {lb:'线上第三方零售', from:0, to:3.28, color:'#C4543A', pv:'3.28 元/瓶', sub:'拼多多最低链接', src:'real', dv:'−18.0%', hi:true}
+    {lb:'品牌出货价',   from:0, to:4.27, color:'#C4543A', pv:'4.27 元/瓶', sub:'64 元/箱', src:'est',    dv:'0（基准）'},
+    {lb:'经销商进货',   from:0, to:4.13, color:'#C88E77', pv:'4.13 元/瓶', sub:'62 元/箱', src:'report', dv:'−3.3%'},
+    {lb:'被要求甩卖',   from:0, to:3.73, color:'#B4402E', pv:'3.73–3.87 元/瓶', sub:'56–58 元/箱 · 每箱亏 4–6 元', src:'report', dv:'−12.6% ~ −9.4%', hi:true, seg:{from:3.73,to:3.87}},
+    {lb:'终端进货',     from:0, to:4.00, color:'#8A7C6D', pv:'4.00 元/瓶', sub:'60 元/箱 · 便利店口径', src:'report', dv:'−6.3%'},
+    {lb:'终端零售',     from:0, to:5.50, color:'#2C4A3E', pv:'5–6 元/瓶',  sub:'毛利 1–2 元/瓶', src:'report', dv:'+28.8% ~ +40.5%'},
+    {lb:'线上第三方零售', from:0, to:3.28, color:'#C4543A', pv:'3.28 元/瓶', sub:'拼多多最低链接', src:'real', dv:'−23.2%', hi:true}
   ];
   var lw = document.getElementById('ladder');
   LAD.forEach(function(r){
